@@ -352,10 +352,11 @@ One additional modification was done. Based on above method, Rover tend to steer
         self.go_forward = 1000 #default is 500 # Threshold to go forward again
 ```
 
-I confirmed that the rover map 96.4% of the environment with 60.5% against the ground truth. And, Rover find the location of five rock sample. For futher improvement, I need to handle some probelems like below:
+I confirmed that the rover map 96.4% of the environment with 60.5% against the ground truth. And, Rover find the location of five rock sample. 
+For futher improvement, I need to handle some problems like below:
     - Avoidance of rock abstacles by caring Rover's body area.
     - Finding one rock sample hiding in shadow of obstacles by adjusting golden color threshold.
-    - Improvement of fidelity by adjusting navigable terrain.
+    - Improvement of fidelity by caring Rover's roll and pitch angles and adjusting navigable terrain threshold.
     - Optimizing time by speeding up and ajusting other parameters.
     - Collect samples by ordering `send_pickup()` function
 

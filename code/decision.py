@@ -15,7 +15,21 @@ def decision_step(Rover):
         # Check for Rover.mode status
         if Rover.mode == 'forward': 
             # Check the extent of navigable terrain
-            if len(Rover.nav_angles) >= Rover.stop_forward:  
+            if Rover.rock_angles.size != 0 and np.mean(Rover.rock_angles) > -5 * np.pi /180:
+                Rover.steer = np.clip(np.mean(Rover.rock_angles) * 180/np.pi, -15, 15)
+                if Rover.near_sample:
+                    Rover.mode = 'stop'
+                    Rover.throttle = 0
+                    Rover.brake = Rover.brake_set
+                else:
+                    if Rover.vel == 0:
+                        # Set throttle value to throttle setting
+                        Rover.throttle = Rover.throttle_set
+                    else: # Else coast
+                        Rover.throttle = 0
+                    Rover.brake = 0
+
+            elif len(Rover.nav_angles) >= Rover.stop_forward:  
                 # If mode is forward, navigable terrain looks good 
                 # and velocity is below max, then throttle 
                 if Rover.vel < Rover.max_vel:
@@ -24,8 +38,23 @@ def decision_step(Rover):
                 else: # Else coast
                     Rover.throttle = 0
                 Rover.brake = 0
-                # Set steering to average angle clipped to the range +/- 15
-                Rover.steer = np.clip(np.mean(Rover.nav_angles * 180/np.pi), -15, 15)
+
+                # Set Rover's steering
+                if Rover.nav_angles.size != 0:
+                    #### weighted average based on dist and left
+                    #weights = Rover.nav_dists*np.subtract(Rover.nav_angles,Rover.nav_angles.min())
+                    weighted_angle = 10 * np.pi /180
+                    acceptable_range = 45 * np.pi /180
+                    delta = np.abs(np.subtract(Rover.nav_angles, weighted_angle))
+                    delta = np.minimum(delta, acceptable_range)
+                    dir_weights = np.square(np.subtract(1, np.square(np.divide(delta, acceptable_range))))
+                    dir_weights = np.add(dir_weights, 0.01)
+                    #weights = Rover.nav_dists*dir_weights
+                    weights = dir_weights   
+                else:
+                    weights = 1    
+                mean_dir = np.sum(Rover.nav_angles*weights)/np.sum(weights) #dist-weighted average
+                Rover.steer = np.clip(mean_dir * 180/np.pi, -15, 15)
             # If there's a lack of navigable terrain pixels then go to 'stop' mode
             elif len(Rover.nav_angles) < Rover.stop_forward:
                     # Set mode to "stop" and hit the brakes!
@@ -44,8 +73,19 @@ def decision_step(Rover):
                 Rover.steer = 0
             # If we're not moving (vel < 0.2) then do something else
             elif Rover.vel <= 0.2:
+                if Rover.near_sample == 1:
+                    if Rover.vel == 0 and not Rover.picking_up:
+                        Rover.steer = 0
+                        Rover.throttle = 0
+                        Rover.brake = 0
+                        Rover.send_pickup = True
+                    #else:
+                    #    Rover.steer = np.clip(np.mean(Rover.rock_angles) * 180/np.pi, -15, 15)
+                    #    Rover.throttle = 0
+                    #    Rover.brake = Rover.brake_set
+                        
                 # Now we're stopped and we have vision data to see if there's a path forward
-                if len(Rover.nav_angles) < Rover.go_forward:
+                elif len(Rover.nav_angles) < Rover.go_forward:
                     Rover.throttle = 0
                     # Release the brake to allow turning
                     Rover.brake = 0
@@ -66,10 +106,6 @@ def decision_step(Rover):
         Rover.throttle = Rover.throttle_set
         Rover.steer = 0
         Rover.brake = 0
-        
-    # If in a state where want to pickup a rock send pickup command
-    if Rover.near_sample and Rover.vel == 0 and not Rover.picking_up:
-        Rover.send_pickup = True
-    
+
     return Rover
 
